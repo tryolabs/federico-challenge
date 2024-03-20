@@ -1,5 +1,6 @@
 import unittest
 
+import numpy as np
 import pandas as pd
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
@@ -50,13 +51,13 @@ class TestModel(unittest.TestCase):
     def test_model_fit(self):
         features, target = self.model.preprocess(data=self.data, target_column="delay")
 
-        _, features_validation, _, target_validation = train_test_split(
+        features_train, features_validation, target_train, target_validation = train_test_split(
             features, target, test_size=0.33, random_state=42
         )
 
-        self.model.fit(features=features, target=target)
+        self.model.fit(features=features_train, target=target_train)
 
-        predicted_target = self.model._model.predict(features_validation)
+        predicted_target = self.model.predict(features_validation)
 
         report = classification_report(target_validation, predicted_target, output_dict=True)
 
@@ -66,10 +67,12 @@ class TestModel(unittest.TestCase):
         assert report["1"]["f1-score"] > 0.30
 
     def test_model_predict(self):
-        features = self.model.preprocess(data=self.data)
+        features, target = self.model.preprocess(data=self.data, target_column="delay")
+
+        self.model.fit(features=features, target=target)
 
         predicted_targets = self.model.predict(features=features)
 
         assert isinstance(predicted_targets, list)
         assert len(predicted_targets) == features.shape[0]
-        assert all(isinstance(predicted_target, int) for predicted_target in predicted_targets)
+        assert all(isinstance(predicted_target, np.int64) for predicted_target in predicted_targets)
