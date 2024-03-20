@@ -3,6 +3,7 @@ from typing import List, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LogisticRegression
 
 
 class DelayModel:
@@ -22,9 +23,10 @@ class DelayModel:
     ]
 
     def __init__(self):
-        self._model = None  # Model should be saved in this attribute.
+        self._model = None  # TODO: can I instanciate it without n_y0 and n_y1 ?
         self.n_y0 = 0
         self.n_y1 = 0
+        self.target_column = "target"
 
     def _get_min_diff(self, data):
         fecha_o = datetime.strptime(data["Fecha-O"], "%Y-%m-%d %H:%M:%S")
@@ -59,6 +61,7 @@ class DelayModel:
         features = features[self.FEATURES_COLS]
 
         if target_column:
+            self.target_column = target_column
             data["min_diff"] = data.apply(self._get_min_diff, axis=1)
             data[target_column] = np.where(data["min_diff"] > self.THRESHOLD_IN_MINS, 1, 0)
             return features, data[[target_column]]
@@ -73,7 +76,14 @@ class DelayModel:
             features (pd.DataFrame): preprocessed data.
             target (pd.DataFrame): target.
         """
-        return
+
+        self.n_y0 = len(target[target[self.target_column] == 0])
+        self.n_y1 = len(target[target[self.target_column] == 1])
+
+        self._model = LogisticRegression(
+            class_weight={1: self.n_y0 / len(target), 0: self.n_y1 / len(target)}
+        )
+        self._model.fit(features, target)
 
     def predict(self, features: pd.DataFrame) -> List[int]:
         """
@@ -85,4 +95,6 @@ class DelayModel:
         Returns:
             (List[int]): predicted targets.
         """
-        return
+        features = features[self.FEATURES_COLS]
+
+        return list(self._model.predict(features))
